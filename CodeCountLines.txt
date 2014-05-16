@@ -1,0 +1,93 @@
+
+
+'---------------------------------------------------------------------------------------
+' Procedure : CodeLinesCountSave
+' Author    : Patrick Wood - Gaining Access Technologies http://gainingaccess.net/
+' Date      : 1/2/2012, 5/13/2014
+' Purpose   : Returns the total lines of code in a Database. Blank lines and Comment only 
+'           : lines are not counted. The results are saved in a text file in the folder
+'           : containing the database. The file contains the Module Names and the number
+'           : of lines of code in each module.
+' Example   : Call CodeLinesCountSave(), In Immediate Window: ?CodeLinesCountSave
+'---------------------------------------------------------------------------------------
+'
+Public Function CodeLinesCountSave() As Long
+On Error GoTo ErrHandle
+
+    Dim fso As Object
+    Dim fsoStream As Object
+    Dim mdl As Object
+    Dim i As Long
+    Dim lngCountofLines As Long
+    Dim lngLineCount As Long
+    Dim strFilePath As String
+    Dim strFileName As String
+    Dim strDate As String
+    Dim strLine As String
+    Dim lngTotalLines As Long
+
+    'Build a unique file name with the database name plus date and time
+    'which will be saved in the folder where the database is located.
+    strFileName = CurrentProject.Name
+    strDate = Format(Now(), "yyyy-mm-dd-hh-nn")
+    strFileName = Replace(strFileName, ".", "-")
+    strFileName = "CountOfLines-" & strFileName & strDate & ".txt"
+    strFilePath = CurrentProject.Path & "\" & strFileName
+
+    'Create the text file.
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set fsoStream = fso.CreateTextFile(strFilePath)
+
+    fsoStream.Writeline "Date and Time Lines of Code Counted: " & Now()
+    fsoStream.Writeline " "
+    fsoStream.Writeline "Count of Lines   Module Name"
+    fsoStream.Writeline "-------------------------------------"
+
+    'Loop through each Module in the project.
+    For Each mdl In VBE.ActiveVBProject.VBComponents
+        lngLineCount = 0
+        'Get the number of lines of code in the Module.
+        lngCountofLines = VBE.ActiveVBProject.VBComponents(mdl.Name).CodeModule.CountOfLines
+		
+        'Check each line in the Module for code.
+        For i = 1 To lngCountofLines
+            strLine = VBE.ActiveVBProject.VBComponents(mdl.Name).CodeModule.Lines(i, 1)
+            If Len(Trim$(strLine) & "") = 0 Then
+                'Blank line, skip it.
+            ElseIf Left$(Trim$(strLine), 1) = "'" Then
+                'Comment line, skip it.
+            Else
+                lngLineCount = lngLineCount + 1
+            End If
+        Next i
+
+        'Add the number of lines in the Module to the count.
+        lngTotalLines = lngTotalLines + lngLineCount
+        'Write the information in the text file.
+        fsoStream.WriteLine lngLineCount & Space(5 - Len(CStr(lngLineCount))) & " " & mdl.Name
+    Next mdl
+
+    fsoStream.Writeline "-------------------------------------"
+    fsoStream.Writeline "Total Lines of code in Database: " & lngTotalLines
+    fsoStream.WriteLine " "
+    fsoStream.WriteLine "*Blank lines are excluded."
+
+    CodeLinesCountSave = lngTotalLines
+
+    MsgBox "The info has been saved to:" & vbCrLf & strFilePath
+
+ExitHere:
+    'Release Memory.
+    On Error Resume Next
+    fsoStream.Close
+    Set fsoStream = Nothing
+    Set fso = Nothing
+    Exit Function
+
+ErrHandle:
+    MsgBox "Error " & Err.Number & " " & Err.Description _
+    & vbCrLf & "In Procedure CodeLinesCountSave"
+    Resume ExitHere
+
+End Function
+
